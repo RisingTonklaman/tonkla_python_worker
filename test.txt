@@ -11,3 +11,5 @@ API_TOKEN=aG-HpcvuZCNoYhdgT-tSqEDNDzSrHLOGebsPsQJq
 curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/e769b3fde2ca59b181f8af5c2e922e08/workers/routes" \
   -H "Authorization: Bearer aG-HpcvuZCNoYhdgT-tSqEDNDzSrHLOGebsPsQJq" \
   -H "Content-Type: application/json" | jq '.result[] | {id: .id, pattern: .pattern, script: .script, zone_name: .zone_name}'
+
+$plain = Read-Host -Prompt "Paste Cloudflare API token (will be hidden)" -AsSecureString
