@@ -9,5 +9,5 @@ account_id = "e769b3fde2ca59b181f8af5c2e922e08"
 MESSAGE = "My env var"
 
 routes = [
-  { pattern = "api.tonklamobile.risingtonklaman.xyz/*", zone_name = "risingtonklaman.xyz" }
+  { pattern = "api.risingtonklaman.xyz/*", zone_name = "risingtonklaman.xyz" }
 ]

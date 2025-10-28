@@ -1,0 +1,64 @@
+name: Staging Deploy FastAPI Worker
+
+on:
+  pull_request:
+  push:
+    branches: [ "staging" ]
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for Wrangler)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+          uv --version
+
+      - name: Install Wrangler CLI
+        run: npm i -g wrangler@latest
+
+      - name: Deploy FastAPI worker to staging
+        env:
+          # Prefer a dedicated staging token; fall back to CF_API_TOKEN if not present
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN_STAGING || secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN_STAGING || secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          cd 03-fastapi
+          # Deploy the worker; this vendors Python deps then publishes the script.
+          uv run pywrangler deploy
+
+      - name: Post-deploy smoke tests (staging)
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ -z "$STAGING_URL" ]; then echo "STAGING_URL secret not set. Set it to the staging domain (e.g. https://staging-api.example.com)" && exit 1; fi
+          # health
+          status=$(curl -s -o /dev/null -w "%{http_code}" $STAGING_URL/health)
+          if [ "$status" -ne 200 ]; then echo "Staging health failed: $status" && exit 1; fi
+          # root
+          status=$(curl -s -o /dev/null -w "%{http_code}" $STAGING_URL/)
+          if [ "$status" -ne 200 ]; then echo "Staging root failed: $status" && exit 1; fi
+          # hi
+          out=$(curl -sS "$STAGING_URL/hi/testuser" || true)
+          echo "$out" | grep -q "Hello" || (echo "staging hi endpoint failed: $out" && exit 1)
+
+      - name: Notice
+        run: |
+          echo "Staging deploy and smoke tests completed. If you want automatic staging URLs, add a `STAGING_URL` secret with the staging domain to this repository."

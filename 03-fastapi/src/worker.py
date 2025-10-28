@@ -14,6 +14,15 @@ async def root():
     return {"message": message}
 
 
+@app.get("/health")
+async def health():
+    """Simple health endpoint for uptime checks and post-deploy smoke tests.
+
+    Returns HTTP 200 with a small JSON payload.
+    """
+    return {"status": "ok"}
+
+
 @app.get("/hi/{name}")
 async def say_hi(name: str):
     message = template.render(name=name)
