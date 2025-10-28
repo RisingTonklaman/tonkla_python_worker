@@ -52,5 +52,25 @@ jobs:
           fi
         done
 
+    - name: Load Cloudflare token/account from repo file (optional)
+      # Helpful if you deliberately keep a token file in the repo (NOT RECOMMENDED for public repos)
+      # This step will set CLOUDFLARE_API_TOKEN and CF_ACCOUNT_ID from files if they exist:
+      #  - .github/cloudflare_token
+      #  - .github/cloudflare_account_id
+      run: |
+        set -euo pipefail
+        if [ -f .github/cloudflare_token ]; then
+          echo "Warning: loading Cloudflare token from .github/cloudflare_token (repo file). Ensure this repo is private and you understand the security risk." 1>&2
+          echo "CLOUDFLARE_API_TOKEN=$(cat .github/cloudflare_token)" >> $GITHUB_ENV
+          echo "CF_API_TOKEN=$(cat .github/cloudflare_token)" >> $GITHUB_ENV
+        fi
+        if [ -f .github/cloudflare_account_id ]; then
+          echo "CF_ACCOUNT_ID=$(cat .github/cloudflare_account_id)" >> $GITHUB_ENV
+        fi
+
     - name: Run tests
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       run: uv run pytest -vv

@@ -1,3 +1,4 @@
+import os
 import requests
 import pytest
 import subprocess
@@ -60,6 +61,10 @@ def init_db():
     )
 
 
+@pytest.mark.skipif(
+    not os.environ.get("CLOUDFLARE_API_TOKEN"),
+    reason="Requires CLOUDFLARE_API_TOKEN (non-empty) to start wrangler dev in CI",
+)
 def test_04_query_d1(init_db, dev_server):
     port = dev_server
     response = requests.get(f"http://localhost:{port}")
