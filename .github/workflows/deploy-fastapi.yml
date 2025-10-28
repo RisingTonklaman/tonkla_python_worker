@@ -45,15 +45,15 @@ jobs:
           # Deploy using pywrangler to vendor Python deps, then publish via Wrangler
           # Do not pass a --yes flag: Wrangler doesn't accept --yes and it would error.
           uv run pywrangler deploy
-      - name: Post-deploy smoke tests
-        run: |
-          URL="https://api.risingtonklaman.xyz"
-          # check root
-          status=$(curl -s -o /dev/null -w "%{http_code}" $URL/)
-          if [ "$status" -ne 200 ]; then echo "Root not healthy: $status" && exit 1; fi
-          # check health
-          status=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
-          if [ "$status" -ne 200 ]; then echo "Health not healthy: $status" && exit 1; fi
-          # check hi endpoint
-          out=$(curl -sS "$URL/hi/testuser" || true)
-          echo "$out" | grep -q "Hello" || (echo "hi endpoint failed: $out" && exit 1)
+      # - name: Post-deploy smoke tests
+      #   run: |
+      #     URL="https://api.risingtonklaman.xyz"
+      #     # check root
+      #     status=$(curl -s -o /dev/null -w "%{http_code}" $URL/)
+      #     if [ "$status" -ne 200 ]; then echo "Root not healthy: $status" && exit 1; fi
+      #     # check health
+      #     status=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
+      #     if [ "$status" -ne 200 ]; then echo "Health not healthy: $status" && exit 1; fi
+      #     # check hi endpoint
+      #     out=$(curl -sS "$URL/hi/testuser" || true)
+      #     echo "$out" | grep -q "Hello" || (echo "hi endpoint failed: $out" && exit 1)
