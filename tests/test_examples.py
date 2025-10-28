@@ -82,6 +82,8 @@ def test_06_assets(dev_server):
         ("", "text/html"),
         ("image.svg", "image/svg+xml"),
         ("style.css", "text/css; charset=utf-8"),
+        # Note: Wrangler/dev may return either application/javascript or text/javascript
+        # depending on versions. Accept both to avoid flaky CI differences.
         ("script.js", "application/javascript"),
         ("favicon.ico", "image/vnd.microsoft.icon"),
     ]
@@ -89,4 +91,10 @@ def test_06_assets(dev_server):
     for path, content_type in pairs:
         response = requests.get(f"http://localhost:{port}/{path}")
         assert response.status_code == 200
-        assert response.headers["content-type"] == content_type
+        if path == "script.js":
+            assert response.headers["content-type"] in (
+                "application/javascript",
+                "text/javascript; charset=utf-8",
+            )
+        else:
+            assert response.headers["content-type"] == content_type
