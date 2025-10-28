@@ -43,4 +43,5 @@ jobs:
         run: |
           cd 03-fastapi
           # Deploy using pywrangler to vendor Python deps, then publish via Wrangler
-          uv run pywrangler deploy --yes
+          # Do not pass a --yes flag: Wrangler doesn't accept --yes and it would error.
+          uv run pywrangler deploy
