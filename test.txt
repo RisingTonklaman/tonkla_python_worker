@@ -1,0 +1,6 @@
+curl "https://api.cloudflare.com/client/v4/accounts" -H "Authorization: Bearer aG-HpcvuZCNoYhdgT-tSqEDNDzSrHLOGebsPsQJq"
+curl "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+-H "Authorization: Bearer aG-HpcvuZCNoYhdgT-tSqEDNDzSrHLOGebsPsQJq"
+
+C:\Users\jp\Desktop\flutter_prj\python-workers-examples>curl "https://api.cloudflare.com/client/v4/accounts" -H "Authorization: Bearer aG-HpcvuZCNoYhdgT-tSqEDNDzSrHLOGebsPsQJq"
+{"result":[{"id":"e769b3fde2ca59b181f8af5c2e922e08","name":"Zxcvb1230za@gmail.com's Account","type":"standard","settings":{"enforce_twofactor":false,"api_access_enabled":null,"access_approval_expiry":null,"abuse_contact_email":null,"user_groups_ui_beta":false},"legacy_flags":{"enterprise_zone_quota":{"maximum":0,"current":0,"available":0}},"created_on":"2025-02-20T01:26:47.622769Z"}],"result_info":{"page":1,"per_page":20,"total_pages":1,"count":1,"total_count":1},"success":true,"errors":[],"messages":[]}
