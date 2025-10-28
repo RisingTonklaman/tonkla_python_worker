@@ -3,5 +3,11 @@ main = "src/worker.py"
 compatibility_flags = ["python_workers", "python_dedicated_snapshot"]
 compatibility_date = "2025-10-09"
 
+account_id = "e769b3fde2ca59b181f8af5c2e922e08"
+
 [vars]
 MESSAGE = "My env var"
+
+routes = [
+  { pattern = "api.tonklamobile.risingtonklaman.xyz/*", zone_name = "risingtonklaman.xyz" }
+]
