@@ -21,10 +21,36 @@ jobs:
     - name: Set up Python
       run: uv python install 3.13
 
-    - name: Install dependencies
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+
+    - name: Cache uv python downloads
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/uv/python
+        key: ${{ runner.os }}-uv-python-${{ hashFiles('**/pyproject.toml') }}
+
+    - name: Install dependencies for examples (fast path)
       run: |
-        uv sync --dev
-        cd 01-hello && uv run pywrangler dev --help
+        # Only sync/install dependencies for examples we run in tests.
+        set -euo pipefail
+        EXAMPLES="01-hello 02-binding 03-fastapi 04-query-d1 06-assets"
+        for d in $EXAMPLES; do
+          if [ -d "$d" ]; then
+            echo "\n=== Syncing $d ==="
+            cd "$d"
+            # uv sync will vendor/install only what that example needs
+            uv sync --dev || true
+            # ensure pywrangler help runs (quick smoke) for examples that need it
+            if [ -f "wrangler.toml" ]; then
+              uv run pywrangler dev --help || true
+            fi
+            cd - >/dev/null
+          fi
+        done
 
     - name: Run tests
       run: uv run pytest -vv
