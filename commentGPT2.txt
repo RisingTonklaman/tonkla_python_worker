@@ -1,0 +1,53 @@
+กำลังอัปเดตสถานะแผนงานว่า "สร้าง pipeline CI & deploy" กำลังทำอยู่ (in-progress) — จะรันเพื่อบันทึกความคืบหน้า.
+
+Created 7 todos
+
+ตอบตรงๆ ประเด็นที่ถาม (ไทย)
+
+ใช้ GitHub Actions เพื่อ build & deploy — จะรันครบความต้องการของ FastAPI ไหม?
+สั้น ๆ: ใช่ — ถา workflow ถูกตั้งค่าให้รันบน Ubuntu และเรียก uv run pywrangler เพื่อ vendor dependencies (จาก pyproject.toml) แล้ว deploy, GitHub Actions จะสร้าง bundle ที่มี FastAPI, Jinja2 และไลบรารีทั้งหมดและ deploy ขึ้น Cloudflare ได้เหมือนกับที่รันบน Linux บนเครื่องคุณ
+ทำไม: เพราะ CI (Ubuntu runner) เป็นสภาพแวดล้อม Linux ที่รองรับการทำงานของ pyodide/pywrangler และกระบวนการ cross-build ที่ Windows ทำไม่ได้ด้วยตัวเอง
+CI (GitHub Actions) กับการพัฒนา local — พวกมันทำงานรวมกันอย่างไร?
+CI ทำหน้าที่ build & deploy อัตโนมัติเมื่อคุณ push โค้ด → ผลลัพธ์คือ worker ที่รันบน Cloudflare (production)
+Local dev ยังจำเป็นสำหรับการเขียน/ทดสอบโค้ด แต่:
+ถ้าคุณอยากรันตัวอย่าง FastAPI แบบเต็ม (ที่ต้อง vendor ไลบรารี) บนเครื่อง คุณต้องใช้ WSL/Docker หรือมีพื้นที่เพียงพอ (เพราะ pyodide build ต้องการ Linux)
+ถ้าไม่ติดตั้ง Linux คุณยังสามารถ:
+รัน unit tests ที่ไม่ต้องการ vendoring (เช่น pure-python tests) บน Windows (pytest)
+ใช้ CI เป็น “builder” แล้วทดสอบบน cloud worker หลัง deploy (เช่น integration tests run ใน CI ก่อนหรือหลัง deploy)
+รัน npx wrangler dev --local สำหรับตัวอย่างที่ไม่ต้องพึ่ง external packages (เช่น 01-hello)
+ข้อเรียกร้องที่ต้องเตรียมให้ workflow สำเร็จ
+ใน repo:
+pyproject.toml ต้องมี dependencies ที่ถูกต้อง (fastapi, jinja2, ฯลฯ)
+wrangler.toml ควรมี main, name และ (แนะนำ) account_id หรือให้ workflow เตรียม env CF_ACCOUNT_ID
+ใน GitHub repo (Secrets):
+CF_API_TOKEN — API token ที่มีสิทธิ์ Deploy (Workers Scripts: Edit; Routes: Edit ถ้าต้องสร้าง/เปลี่ยน routes)
+CF_ACCOUNT_ID — (หรือใส่ใน wrangler.toml) เพื่อให้ wrangler/deploy ทำงาน
+Workflow ต้อง:
+ติดตั้ง uv (ตามคำสั่ง astral.sh)
+cd เข้า 03-fastapi
+รัน uv run pywrangler deploy --yes
+(แนะนำ) รัน pytest ก่อน deploy เพื่อป้องกัน deploy ที่มีบั๊ก
+ข้อจำกัด / edge cases
+Build อาจช้าและดาวน์โหลดไฟล์จำนวนมาก → อาจใช้เวลาสักครู่ใน CI (แต่ GitHub Actions ให้เวลาเพียงพอสำหรับงานปกติ)
+ถ้าใช้ D1/R2/KV หรือต้องแก้ routes อัตโนมัติ ให้แน่ใจว่า token มีสิทธิ์ครอบคลุมสิ่งเหล่านี้
+ถ้าต้องการ preview environment (staging) แนะนำใช้ branch-based workflow หรือใช้ different worker name for staging
+Workflow ใช้ได้ทั้ง "local development" และ "deploy to cloud" ไหม?
+CI ไม่ได้ทำให้คุณรันโค้ดแบบ interactive บนเครื่อง local อัตโนมัติ — แต่ CI สร้างและ deploy artifact ที่คุณสามารถทดสอบบน cloud
+การพัฒนา local (fast edit → quick test) ถ้าคุณต้องการ workflow แบบรวดเร็ว:
+ทำ unit tests locally (pytest)
+ใช้ CI เพื่อ build full vendor bundle and deploy to staging for integration tests
+เมื่อผ่าน ทยอย promote to production
+ผมจะทำให้คุณไหม?
+ผมพร้อมสร้างไฟล์ GitHub Actions workflow ใน repo (deploy-fastapi.yml) ที่:
+checkout
+install uv
+cd 03-fastapi
+run tests (pytest)
+uv run pywrangler deploy
+คุณแค่ต้องเพิ่ม CF_API_TOKEN และ CF_ACCOUNT_ID ใน GitHub Secrets ก่อน push
+ต้องการให้ผมเพิ่ม workflow ให้เลยหรือยัง? ถ้าใช่ ผมจะสร้าง patch ให้คุณ apply (หรือผมจะ commit ที่ repo ถ้าคุณอนุญาต)
+สรุปสั้นๆ
+
+ใช่ — CI (GitHub Actions) สามารถ build & deploy fastapi ที่มี dependencies ครบได้บน Ubuntu runner
+Local dev ยังสำคัญ แต่ถ้าพื้นที่ไม่พอ คุณสามารถ rely on CI for full builds and test on cloud
+บอกผมว่า: "สร้าง workflow ให้เลย" หรือ "อยากดูตัวอย่าง workflow ก่อน" — ผมจะทำตามนั้น.

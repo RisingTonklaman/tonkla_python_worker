@@ -1,0 +1,76 @@
+ดี — ผมอัปเดต TODO list ให้แล้ว (รายการสำคัญด้านบน) แล้วจะอธิบายต่อเป็นข้อๆ ให้ชัดว่าต้องทำอะไรบ้างถ้าคุณอยากขยายจาก 01-hello เป็น API ขนาดใหญ่ และสิ่งที่มักถูกมองข้าม
+
+สั้นๆ ก่อน — คำตอบตรงๆ
+ถ้าเป้าหมายแค่ “ขึ้นเว็บ/ผูกโดเมน แล้วตอบ Hello” — ใช่ จบได้ด้วย 01-hello และการผูกโดเมนเท่านั้น
+ถ้าต้องการ “API ที่ใหญ่ขึ้น” (หลาย endpoints, third‑party libs เช่น FastAPI, template engines, DB access ฯลฯ) — ยังต้องทำงานเพิ่มอีกหลายอย่าง: vendor/packaging ของ dependencies, CI/build pipeline (เพราะบน Windows build อาจยาก), secrets/vars, storage bindings, ทดสอบ, และการตั้งค่า production (โดเมน, TLS, CORS, rate limits, monitoring)
+สิ่งที่ต้องคิด/ทำเมื่อต้องการขยายเป็น API ที่ใช้งานจริง
+Dependencies / packaging (vendoring)
+
+Cloudflare Python Workers ต้องให้โค้ดและ dependencies อยู่ใน bundle เดียวกัน (vendored).
+เครื่องมือที่ใช้: pywrangler (ผ่าน uv run pywrangler) จะช่วย vendor ไลบรารีไปยัง worker image. การสร้างบางขั้นตอนต้องใช้ Linux (pyodide cross-build) — ดังนั้นถ้าเครื่องคุณไม่รองรับ ให้ใช้ CI (GitHub Actions) หรือ WSL/Docker.
+ทางเลือก:
+ทำ build บน Ubuntu (WSL2/Docker) แล้ว deploy
+หรือให้ CI ทำ build & deploy อัตโนมัติ (แนะนำถ้าพื้นที่เครื่องจำกัด)
+Local dev & tests
+
+ทดสอบโลคอลด้วย uv run pywrangler dev (บน WSL/Ubuntu หรือบน CI agent)
+มีไฟล์ tests ใน repo — ใช้ pytest ใน CI เพื่อความเชื่อมั่นก่อน deploy
+ใช้ feature branches และ preview deploys ก่อนเปลี่ยน production route
+Config & secrets
+
+ใช้ wrangler.toml สำหรับการตั้งค่า worker (main, name, compatibility_date, vars)
+ใส่ secret ด้วย npx wrangler secret put <NAME> หรือผ่าน Cloudflare dashboard / GitHub Secrets สำหรับ CI
+แยกค่าที่ไม่ปลอดภัย (API keys, DB passwords) ออกจาก repo
+Storage & state
+
+Workers เป็น stateless — ถ้าต้องเก็บข้อมูลต้องผูก binding เช่น KV, D1 (SQL), R2 (object storage), Durable Objects (ถ้ต้องการ stateful per-id)
+repo นี้มีตัวอย่าง 04-query-d1 — ดูเป็น reference ถ้าต้องเชื่อม DB
+Performance / cold starts / size
+
+เพิ่ม dependencies มากๆ → ขนาด bundle เพิ่ม → cold-start latency อาจสูงขึ้น
+พยายาม keep dependencies เล็ก และใช้ streaming/caching เมื่อเป็นไปได้
+ใช้ Cloudflare caching (Cache API / CDN rules) ถ้าบาง endpointเป็น static หรือไม่เปลี่ยนบ่อย
+Limits, quotas และ cost
+
+Workers มีข้อจำกัดเรื่อง execution time, CPU, memory per request และ throughput — ตรวจในเอกสาร Cloudflare (และข้อจำกัดสำหรับ Python Workers ใน beta)
+วางแผนป้องกัน (timeouts, retries, circuit-breaker) และติดตามการใช้ทรัพยากร
+Routing / domains / TLS / DNS
+
+เพิ่ม routes ใน wrangler.toml หรือผูกผ่าน Cloudflare Dashboard
+หากใช้ subdomain เช่น api.example.com ต้องมี DNS record ที่เปิด proxy (เมฆสีส้ม) ใน Cloudflare
+Observability & debugging
+
+ใช้ Logs (Workers dashboard) และ/หรือ Logpush, และตั้ง alert ถ้าจำเป็น
+เพิ่ม metrics (success rate, latency) ใน CI/CD หรือ Monitoring ที่เชื่อมกับ Cloudflare
+Security
+
+Input validation, authentication (JWT, API keys), rate limiting, CORS, และป้องกันการเปิดเผย secret
+ถ้าใช้ 3rd party services ให้จำกัดสิทธิ์ของ token
+Rollout / deploy strategy
+
+ใช้ preview deploys หรือ deploy ชื่อเวอร์ชันใหม่ (fast rollbacks) หากเกิดปัญหา
+CI pipelines ควรรัน tests ก่อน deploy
+ตัวอย่าง workflow แนะนำ (ปฏิบัติจริง)
+ถ้าพื้นที่เครื่องไม่พอ → สร้าง GitHub Actions workflow ที่ผมเตรียมให้ก่อน (build/vendor บน Ubuntu → deploy)
+ตั้ง GitHub secret CF_API_TOKEN (สิทธิ์ Workers Scripts:Edit, Workers Routes:Edit ถ้าต้องการเปลี่ยน routes)
+ปรับ wrangler.toml ให้มี account_id และ routes ถ้าต้องการ auto-bind
+push → CI จะ build → deploy → worker บน Cloudflare จะอัปเดต
+(ผมสามารถเพิ่ม workflow ให้ใน repo ถ้าคุณต้องการ — แค่บอกผมจะเพิ่มไฟล์ .github/workflows/deploy-fastapi.yml)
+
+สิ่งที่ผู้คนมักพลาด (รายการสั้น)
+ไม่ vendoring ไลบรารีก่อน deploy → runtime error (ModuleNotFoundError)
+วาง secrets ในโค้ด (ต้องใช้ secrets)
+ลืมตรวจ limits ของ Workers → เห็นปัญหาเมื่อโหลดจริง
+ทดสอบเฉพาะโลคอลบน Windows แต่ไม่ทดสอบ build บน Linux → Build fail ใน production
+ลืมตั้ง route/DNS ให้ถูกต้อง → worker ไม่ตอบเมื่อเรียกผ่านโดเมน
+คำแนะนำปฏิบัติที่เราสามารถทำให้ตอนนี้
+ถ้าต้องการขึ้น live เร็ว: ให้ผมช่วย deploy 01-hello และผูกโดเมนให้
+ถ้าต้องการ API ขนาดใหญ่: ให้ผมเพิ่ม GitHub Actions workflow ใน repo ที่จะ build 03-fastapi แล้ว deploy โดยอัตโนมัติ (คุณแค่เพิ่ม Cloudflare secret)
+ถ้าต้องการพัฒนาโลคอลบนเครื่อง (แต่พื้นที่จำกัด): ใช้ GitHub Actions เป็น builder หรือใช้ remote Linux server
+ถัดไป — ให้ผมทำอะไรสำหรับคุณ
+เลือกจากตัวเลือกด้านล่าง:
+
+A) ผมจะเพิ่ม workflow GitHub Actions เพื่อ build & deploy 03-fastapi (CI builds บน Ubuntu). ผมจะ commit ไฟล์ workflow ให้คุณ — คุณต้องตั้ง CF_API_TOKEN secret ใน GitHub. (ผมสามารถทำ patch ให้)
+B) ผมจะเพิ่มตัวอย่างการ deploy 01-hello และคำสั่งที่ต้องทำบนเครื่อง Windows เพื่อผูกโดเมนทันที
+C) ถ้าคุณอยากพัฒนต่อบนเครื่อง (และมีทางเพิ่มพื้นที่) ผมจะให้ขั้นตอน WSL2 + uv แบบทีละคำสั่ง
+บอกผมว่าจะเอา A, B หรือ C แล้วผมจะลงมือทันที.
