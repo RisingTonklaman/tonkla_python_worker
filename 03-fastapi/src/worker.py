@@ -1,11 +1,16 @@
 import jinja2
 from fastapi import FastAPI, Request
 from workers import WorkerEntrypoint
+from fastapi import APIRouter
+from .mobile import router as mobile_router
 
 environment = jinja2.Environment()
 template = environment.from_string("Hello, {{ name }}!")
 
 app = FastAPI()
+
+# mount mobile01 router for Supabase-backed CRUD
+app.include_router(mobile_router, prefix="/mobile01")
 
 
 @app.get("/")
