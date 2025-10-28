@@ -47,7 +47,7 @@ jobs:
           uv run pywrangler deploy
       - name: Post-deploy smoke tests
         run: |
-          URL="https://api.tonklamobile.risingtonklaman.xyz"
+          URL="https://api.risingtonklaman.xyz"
           # check root
           status=$(curl -s -o /dev/null -w "%{http_code}" $URL/)
           if [ "$status" -ne 200 ]; then echo "Root not healthy: $status" && exit 1; fi
