@@ -1,7 +1,10 @@
 import jinja2
 import os
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
+import pkgutil
+import importlib
+import importlib.resources as importlib_resources
 
 # The `workers` package (WorkerEntrypoint) is provided by the Cloudflare Python
 # runtime. When running locally with uvicorn it won't be available, so import
@@ -53,12 +56,105 @@ except Exception:
 # differently (for example the Cloudflare packaged worker bundle).
 @app.get("/web", include_in_schema=False)
 async def web_index():
+    # Try multiple strategies to load the static index.html so this works
+    # both in local uvicorn and in Cloudflare's pyodide packaged environment.
+    filename = "index.html"
+    content = None
+
+    # 1) filesystem (local dev)
     static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
-    index_path = os.path.abspath(os.path.join(static_dir, "index.html"))
+    index_path = os.path.abspath(os.path.join(static_dir, filename))
     if os.path.exists(index_path):
         return FileResponse(index_path, media_type="text/html")
+
+    # 2) try importlib.resources (package data)
+    try:
+        # attempt to read from a package named 'static' or relative to this package
+        try:
+            data = pkgutil.get_data(__package__ or __name__, os.path.join("..", "static", filename))
+            if data:
+                content = data
+        except Exception:
+            pass
+
+        if content is None:
+            # try importlib.resources.files for common package layouts
+            try:
+                pkg = importlib.import_module(__package__ or 'src')
+                res = importlib_resources.files(pkg).joinpath('..').joinpath('static').joinpath(filename)
+                content = res.read_bytes()
+            except Exception:
+                # last attempt: package named 'static'
+                try:
+                    data = pkgutil.get_data('static', filename)
+                    if data:
+                        content = data
+                except Exception:
+                    content = None
+    except Exception:
+        content = None
+
+    if content:
+        return Response(content, media_type='text/html')
+
     # fallback: redirect to root
     return RedirectResponse("/")
+
+
+# Serve static assets explicitly under /web/ so assets work whether
+# the URL is /web or /web/. These handlers try the same package/resource
+# lookup strategy used above.
+def _load_static_bytes(filename: str) -> bytes | None:
+    # 1) filesystem
+    static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+    path = os.path.abspath(os.path.join(static_dir, filename))
+    if os.path.exists(path):
+        try:
+            return open(path, 'rb').read()
+        except Exception:
+            pass
+
+    # 2) pkgutil relative
+    try:
+        data = pkgutil.get_data(__package__ or __name__, os.path.join('..', 'static', filename))
+        if data:
+            return data
+    except Exception:
+        pass
+
+    # 3) importlib.resources
+    try:
+        pkg = importlib.import_module(__package__ or 'src')
+        res = importlib_resources.files(pkg).joinpath('..').joinpath('static').joinpath(filename)
+        return res.read_bytes()
+    except Exception:
+        pass
+
+    # 4) try package named 'static'
+    try:
+        data = pkgutil.get_data('static', filename)
+        if data:
+            return data
+    except Exception:
+        pass
+
+    return None
+
+
+@app.get('/web/app.css', include_in_schema=False)
+async def web_css():
+    data = _load_static_bytes('app.css')
+    if data is None:
+        return RedirectResponse('/')
+    return Response(content=data, media_type='text/css')
+
+
+@app.get('/web/app.js', include_in_schema=False)
+async def web_js():
+    data = _load_static_bytes('app.js')
+    if data is None:
+        return RedirectResponse('/')
+    return Response(content=data, media_type='application/javascript')
 
 
 @app.get("/")
