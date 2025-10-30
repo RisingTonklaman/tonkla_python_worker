@@ -5,6 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Body, Query, Request
 from pydantic import BaseModel
+from datetime import date, time as dt_time
 
 try:
     # local/dev: load .env if present
@@ -362,8 +363,82 @@ async def task_read_one(task_id: str):
 
 @router.post("/tasks")
 async def tasks_create(request: Request, payload: Dict[str, Any] = Body(...)):
+    """Create a task via RPC `tasks_create(p_due_date,p_due_time,p_is_important,p_list_id,p_notes,p_priority,p_sort_order,p_title)`.
+
+    Accepts either friendly keys (title, list_id, notes, due_date, due_time, is_important, priority, sort_order)
+    or RPC-style keys (p_title, p_list_id, p_notes, p_due_date, p_due_time, p_is_important, p_priority, p_sort_order).
+    """
     auth = request.headers.get("authorization")
-    return await _supabase_rpc("tasks_create", payload, auth_token=auth)
+
+    # Normalize incoming payload to friendly names
+    try:
+        title = payload.get("title") if isinstance(payload, dict) else None
+        list_id = payload.get("list_id") if isinstance(payload, dict) else None
+        notes = payload.get("notes") if isinstance(payload, dict) else None
+        due_date = payload.get("due_date") if isinstance(payload, dict) else None
+        due_time = payload.get("due_time") if isinstance(payload, dict) else None
+        is_important = payload.get("is_important") if isinstance(payload, dict) else None
+        priority = payload.get("priority") if isinstance(payload, dict) else None
+        sort_order = payload.get("sort_order") if isinstance(payload, dict) else None
+
+        # accept p_ prefixed keys too
+        if title is None:
+            title = payload.get("p_title") if isinstance(payload, dict) else None
+        if list_id is None:
+            list_id = payload.get("p_list_id") if isinstance(payload, dict) else None
+        if notes is None:
+            notes = payload.get("p_notes") if isinstance(payload, dict) else None
+        if due_date is None:
+            due_date = payload.get("p_due_date") if isinstance(payload, dict) else None
+        if due_time is None:
+            due_time = payload.get("p_due_time") if isinstance(payload, dict) else None
+        if is_important is None:
+            is_important = payload.get("p_is_important") if isinstance(payload, dict) else None
+        if priority is None:
+            priority = payload.get("p_priority") if isinstance(payload, dict) else None
+        if sort_order is None:
+            sort_order = payload.get("p_sort_order") if isinstance(payload, dict) else None
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid payload")
+
+    class TasksCreateModel(BaseModel):
+        title: str
+        list_id: str
+        notes: Optional[str] = None
+        due_date: Optional[date] = None
+        due_time: Optional[dt_time] = None
+        is_important: Optional[bool] = False
+        priority: Optional[int] = 3
+        sort_order: Optional[float] = 0
+
+    # Validate
+    try:
+        model = TasksCreateModel(
+            title=title,
+            list_id=list_id,
+            notes=notes,
+            due_date=due_date,
+            due_time=due_time,
+            is_important=is_important,
+            priority=priority,
+            sort_order=sort_order,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"validation error: {e}")
+
+    # Map to RPC params expected by DB
+    rpc_args: Dict[str, Any] = {
+        "p_title": model.title,
+        "p_list_id": model.list_id,
+        "p_notes": model.notes,
+        "p_due_date": model.due_date.isoformat() if model.due_date else None,
+        "p_due_time": model.due_time.isoformat() if model.due_time else None,
+        "p_is_important": model.is_important,
+        "p_priority": model.priority,
+        "p_sort_order": model.sort_order,
+    }
+
+    return await _supabase_rpc("tasks_create", rpc_args, auth_token=auth)
 
 
 @router.put("/tasks/{task_id}")
