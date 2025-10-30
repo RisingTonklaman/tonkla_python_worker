@@ -16,7 +16,17 @@ except Exception:
         async def fetch(self, request):
             raise RuntimeError("WorkerEntrypoint.fetch should not be called in local dev")
 from fastapi import APIRouter
-from .mobile import router as mobile_router
+
+# Import router from mobile.py. When running under Cloudflare's pyodide
+# packaging the module may be executed as a top-level script (no package)
+# so a relative import (from .mobile) can fail with "no known parent package".
+# Try the relative import first (normal local dev), then fall back to an
+# absolute import which works in the packaged worker bundle.
+try:
+    from .mobile import router as mobile_router  # local/dev import
+except Exception:
+    # Fallback for the Cloudflare packaged environment where files are top-level
+    from mobile import router as mobile_router
 
 environment = jinja2.Environment()
 template = environment.from_string("Hello, {{ name }}!")
@@ -64,19 +74,6 @@ async def env(req: Request):
     env = req.scope["env"]
     message = f"Here is an example of getting an environment variable: {env.MESSAGE}"
     return {"message": message}
-
-
-# Development helper: list all registered routes (safe to remove before production)
-@app.get("/_dev_routes")
-async def dev_routes():
-    out = []
-    for r in app.routes:
-        try:
-            methods = list(getattr(r, "methods", []) or [])
-            out.append({"path": r.path, "methods": methods, "name": getattr(r, "name", None)})
-        except Exception:
-            pass
-    return out
 
 
 class Default(WorkerEntrypoint):
