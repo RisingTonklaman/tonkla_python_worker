@@ -454,7 +454,8 @@ async def tasks_delete(task_id: str):
 
 @router.get("/tags")
 async def tags_read_all():
-    return await _supabase_rpc("tags_read_all", {})
+    # The Supabase RPC implemented in supabase/tags.sql is `tags_read()`
+    return await _supabase_rpc("tags_read", {})
 
 
 @router.post("/tags")
@@ -507,13 +508,15 @@ async def tags_delete(tag_id: str):
 @router.post("/tags/assign")
 async def tags_assign(request: Request, payload: Dict[str, Any] = Body(...)):
     auth = request.headers.get("authorization")
-    return await _supabase_rpc("tags_assign", payload, auth_token=auth)
+    # Supabase function for assigning tags is `task_tags_assign(p_task_id, p_tag_id)`
+    return await _supabase_rpc("task_tags_assign", payload, auth_token=auth)
 
 
 @router.post("/tags/unassign")
 async def tags_unassign(request: Request, payload: Dict[str, Any] = Body(...)):
     auth = request.headers.get("authorization")
-    return await _supabase_rpc("tags_unassign", payload, auth_token=auth)
+    # Supabase function for unassigning tags is `task_tags_unassign(p_task_id, p_tag_id)`
+    return await _supabase_rpc("task_tags_unassign", payload, auth_token=auth)
 
 
 @router.post("/reminders")

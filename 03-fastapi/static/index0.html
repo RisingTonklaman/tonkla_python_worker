@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lists & Tags Tester</title>
+    <style>
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            margin: 24px;
+        }
+
+        input,
+        button,
+        select,
+        textarea {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .row {
+            margin: 8px 0;
+        }
+
+        pre {
+            background: #111827;
+            color: #e5e7eb;
+            padding: 12px;
+            border-radius: 6px;
+            overflow: auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .card {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Lists & Tags Tester (/mobile01)</h1>
+    <p class="muted">เรียก API สำหรับ Lists และ Tags (GET, POST) ผ่าน FastAPI. เปิดหน้านี้ที่ <code>/web</code>.</p>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Lists</h2>
+            <div class="row"><button id="btn-lists-read">GET /mobile01/lists</button></div>
+            <div class="row">
+                <input id="list-title" placeholder="title" />
+                <input id="list-color" placeholder="color (#ff0000)" />
+                <input id="list-position" placeholder="position (number)" />
+                <button id="btn-lists-create">POST /mobile01/lists</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Tags</h2>
+            <div class="row"><button id="btn-tags-read">GET /mobile01/tags</button></div>
+            <div class="row">
+                <input id="tag-name" placeholder="name" />
+                <input id="tag-color" placeholder="color (#ff0000)" />
+                <button id="btn-tag-create">POST /mobile01/tags</button>
+            </div>
+        </div>
+    </div>
+
+    <h2>Output</h2>
+    <pre id="out">...</pre>
+
+    <script>
+        const out = document.getElementById('out');
+        function show(obj) { out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
+
+        async function req(path, method = 'GET', body = null) {
+            const headers = body ? { 'Content-Type': 'application/json' } : undefined;
+            const res = await fetch(path, { method, headers: headers, body: body ? JSON.stringify(body) : undefined });
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { return text; }
+        }
+
+        // Lists
+        document.getElementById('btn-lists-read').onclick = async () => {
+            show(await req('/mobile01/lists'));
+        };
+
+        document.getElementById('btn-lists-create').onclick = async () => {
+            const title = document.getElementById('list-title').value;
+            const color = document.getElementById('list-color').value;
+            const positionRaw = document.getElementById('list-position').value || '0';
+            const position = Number(positionRaw);
+            // send p_ prefixed args as your RPC expects
+            show(await req('/mobile01/lists', 'POST', { p_title: title, p_color: color, p_position: position }));
+        };
+
+        // Tags
+        document.getElementById('btn-tags-read').onclick = async () => {
+            show(await req('/mobile01/tags'));
+        };
+
+        document.getElementById('btn-tag-create').onclick = async () => {
+            const name = document.getElementById('tag-name').value;
+            const color = document.getElementById('tag-color').value;
+            // send p_ prefixed args as your RPC expects
+            show(await req('/mobile01/tags', 'POST', { p_name: name, p_color: color }));
+        };
+    </script>
+</body>
+
+</html>
