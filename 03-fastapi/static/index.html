@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo RPC Tester</title>
+    <style>
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            margin: 24px;
+        }
+
+        input,
+        button,
+        select,
+        textarea {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .row {
+            margin: 8px 0;
+        }
+
+        pre {
+            background: #111827;
+            color: #e5e7eb;
+            padding: 12px;
+            border-radius: 6px;
+            overflow: auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .card {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Todo RPC Tester (/mobile01)</h1>
+    <p class="muted">ทดสอบเรียก Supabase RPC ผ่าน FastAPI. Endpoint base: <code>/mobile01</code>. เปิดหน้านี้ที่
+        <code>/web</code>.
+    </p>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Auth</h2>
+            <div class="row">
+                <input id="jwt-token" placeholder="Bearer &lt;user_jwt&gt; (leave blank for anon)" style="width:100%" />
+            </div>
+            <div class="row muted">Tip: paste the full token (or just the raw JWT). The UI will add the Bearer prefix if
+                needed.</div>
+        </div>
+
+        <div class="card">
+            <h2>Lists</h2>
+            <div class="row"><button id="btn-lists-read">GET /mobile01/lists</button></div>
+            <div class="row">
+                <input id="list-title" placeholder="title" />
+                <input id="list-color" placeholder="color (#ff0000)" />
+                <button id="btn-lists-create">POST /mobile01/lists</button>
+            </div>
+        </div>
+
+        <input id="task-list-id" placeholder="list_id (uuid)" />
+        <button id="btn-task-create">POST /mobile01/tasks</button>
+    </div>
+    </div>
+    <input id="list-title" placeholder="title" />
+    <input id="list-color" placeholder="color (#ff0000)" />
+    <input id="list-position" placeholder="position (number)" />
+    <button id="btn-lists-create">POST /mobile01/lists</button>
+    <div class="row"><button id="btn-tags-read">GET /mobile01/tags</button></div>
+    <div class="row">
+        <input id="tag-name" placeholder="name" />
+        <button id="btn-tag-create">POST /mobile01/tags</button>
+    </div>
+    </div>
+
+    <div class="card">
+        <h2>Generic RPC</h2>
+        <div class="row"><input id="rpc-name" placeholder="function name e.g. reminders_create" style="width: 100%" />
+        </div>
+        <div class="row"><textarea id="rpc-body" rows="4" style="width: 100%"
+                placeholder='{"p_task_id":"uuid","p_remind_at":"2025-10-31T10:30:00+07:00"}'></textarea></div>
+        <div class="row"><button id="btn-rpc-call">POST /mobile01/rpc/{function}</button></div>
+    </div>
+    </div>
+
+    <h2>Output</h2>
+    <pre id="out">...</pre>
+
+    <script>
+        const out = document.getElementById('out');
+        function show(obj) { out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
+
+        async function req(path, method = 'GET', body = null) {
+            const headers = body ? { 'Content-Type': 'application/json' } : undefined;
+            const res = await fetch(path, { method, headers: headers, body: body ? JSON.stringify(body) : undefined });
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { return text; }
+        }
+
+        document.getElementById('btn-lists-read').onclick = async () => {
+            show(await req('/mobile01/lists'));
+        };
+
+        document.getElementById('btn-lists-create').onclick = async () => {
+            const title = document.getElementById('list-title').value;
+            const color = document.getElementById('list-color').value;
+            const positionRaw = document.getElementById('list-position').value || '0';
+            const position = Number(positionRaw);
+            // Send RPC-style parameter names expected by your functions
+            show(await req('/mobile01/lists', 'POST', { p_title: title, p_color: color, p_position: position }));
+        };
+
+        document.getElementById('btn-tasks-read').onclick = async () => {
+            const listId = document.getElementById('tasks-list-id').value;
+            show(await req('/mobile01/tasks?list_id=' + encodeURIComponent(listId)));
+        };
+
+        document.getElementById('btn-task-create').onclick = async () => {
+            const title = document.getElementById('task-title').value;
+            const list_id = document.getElementById('task-list-id').value;
+            show(await req('/mobile01/tasks', 'POST', { title, list_id }));
+        };
+
+        document.getElementById('btn-tags-read').onclick = async () => {
+            show(await req('/mobile01/tags'));
+        };
+
+        document.getElementById('btn-tag-create').onclick = async () => {
+            const name = document.getElementById('tag-name').value;
+            show(await req('/mobile01/tags', 'POST', { name }));
+        };
+
+        document.getElementById('btn-rpc-call').onclick = async () => {
+            const fn = document.getElementById('rpc-name').value;
+            const bodyRaw = document.getElementById('rpc-body').value || '{}';
+            let body = {};
+            try { body = JSON.parse(bodyRaw); } catch (e) { body = { _raw: bodyRaw }; }
+            show(await req('/mobile01/rpc/' + encodeURIComponent(fn), 'POST', body));
+        };
+    </script>
+</body>
+
+</html>

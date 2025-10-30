@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/__init__.py
+src/mobile.py
+src/worker.py
+src/fastapi_worker.egg-info/PKG-INFO
+src/fastapi_worker.egg-info/SOURCES.txt
+src/fastapi_worker.egg-info/dependency_links.txt
+src/fastapi_worker.egg-info/requires.txt
+src/fastapi_worker.egg-info/top_level.txt

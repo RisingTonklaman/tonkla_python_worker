@@ -48,6 +48,27 @@ curl.exe -X PUT http://localhost:8000/mobile01/1 -H "Content-Type: application/j
 
 # delete
 curl.exe -X DELETE http://localhost:8000/mobile01/1
+
+6. Try the RPC-backed endpoints and the tiny web UI
+
+- Lists via RPC
+```powershell
+curl.exe http://localhost:8000/mobile01/lists
+curl.exe -X POST http://localhost:8000/mobile01/lists -H "Content-Type: application/json" -d '{"title":"inbox","color":"#ff0000"}'
+```
+
+- Tasks via RPC
+```powershell
+curl.exe "http://localhost:8000/mobile01/tasks?list_id=YOUR_LIST_UUID"
+curl.exe -X POST http://localhost:8000/mobile01/tasks -H "Content-Type: application/json" -d '{"title":"new task","list_id":"YOUR_LIST_UUID"}'
+```
+
+- Generic RPC passthrough
+```powershell
+curl.exe -X POST http://localhost:8000/mobile01/rpc/reminders_create -H "Content-Type: application/json" -d '{"p_task_id":"UUID","p_remind_at":"2025-10-31T10:30:00+07:00"}'
+```
+
+- Open local web UI: http://127.0.0.1:8000/web
 ```
 
 Notes
